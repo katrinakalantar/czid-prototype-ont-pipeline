@@ -20,5 +20,8 @@ Note, some of the set-up for this is currently done manually (i.e. building the 
 
 
 ```
-miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=data/SRR12458736-tiny.fastq minimap_host_db=reference/chr1.fa minimap_human_db=reference/chr1.fa NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent
+miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=data/SRR12458736-tiny.fastq \
+minimap_host_db=reference/chr1.fa minimap_human_db=reference/chr1.fa \
+NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip \
+alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
 ```

@@ -219,7 +219,7 @@ task RunSubsampling{
         }
         command <<<
                echo "inside RunSubsampling step" >> output.txt
-               head "~{subsample_depth}" "~{input_fastq}" > sample.subsampled.fastq
+               head -"~{subsample_depth}" "~{input_fastq}" > sample.subsampled.fastq
         >>>
 
         output{
@@ -336,29 +336,27 @@ task RunNTAlignment{
                echo "seqs in all_sequences_to_align.fasta" >> output.txt
                grep ">" sample.all_sequences_to_align.fasta | wc -l >> output.txt
 
+               alignment_mode="~{alignment_test_mode}"
+               echo "alignment mode = $alignment_mode" >> output.txt
+
                # IF running option #1, map contigs and non-contig reads to NT with minimap
                if [[ $alignment_mode == "all_mm" ]]
                then
                  echo "DEBUG: alignment mode = $alignment_mode; inside full minimap alignment" >> output.txt
-                 
                  minimap2 -ax asm20 -o sample.nt_minimap2_output.sam "~{NT_minimap2}" sample.all_sequences_to_align.fasta
-                 
                  # create dummy centrifuge output 
                  touch sample.nt_centrifuge_output.txt
-
                # IF running option #2...
                # map assembled_reads_fa to NT with minimap and map non_contig_reads_fa to NT with centrifuge
                elif [[ $alignment_mode == "split_mm_cent" ]]
                then
                  echo "DEBUG: alignment mode = $alignment_mode; inside split alignment" >> output.txt
-                 
                  # Run minimap2 on just the contigs
-                 minimap2 -ax asm20 -o sample.nt_minimap2_output.sam "~{NT_minimap2}" "~{assembled_reads_fa}"
-                 
+                 minimap2 -ax asm20 -o sample.nt_minimap2_output.sam "~{NT_minimap2}" "~{assembled_reads_fa}"                 
                  # Run centrifuge on non-contig reads
                  unzip "~{NT_centrifuge}"
                  centrifuge_dir=`basename -s .zip reference/centrifuge-ref.zip`
-                 centrifuge -q --min-hitlen 50 -x "reference/$centrifuge_dir/p_compressed+h+v" -U "~{non_contig_reads_fa}" -S sample.nt_centrifuge_output.txt
+                 centrifuge -f --min-hitlen 50 -x "reference/$centrifuge_dir/p_compressed+h+v" -U "~{non_contig_reads_fa}" -S sample.nt_centrifuge_output.txt
                else
                  echo "ERROR: UNKNOWN VALUE FOR alignment_test_mode" >> output.txt
                fi
