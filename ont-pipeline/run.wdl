@@ -19,13 +19,21 @@ workflow phylotree{
                 File NT_minimap2
                 File NT_centrifuge
                 String alignment_test_mode = "all_mm" # all_mm, split_mm_cent 
+
+                File NR_diamond
                 
                 String polishing_iterations = 1
 
                 String docker_image_id
         }
 
-        call RunHello{
+        call RunValidateInput{
+                input:
+                        input_fastq = input_fastq,
+                        docker_image_id = docker_image_id
+        }
+
+        call RunQualityFilter{
                 input:
                         input_fastq = input_fastq,
                         docker_image_id = docker_image_id
@@ -33,7 +41,7 @@ workflow phylotree{
 
         call RunHostFilter{
                 input:
-                        input_fastq = RunHello.fastp_output,
+                        input_fastq = RunQualityFilter.fastp_output,
                         library_type = library_type,
                         minimap_host_db = minimap_host_db,
                         docker_image_id = docker_image_id
@@ -79,9 +87,18 @@ workflow phylotree{
                         docker_image_id = docker_image_id
         }
 
+        call RunNRAlignment{
+                input:
+                        assembled_reads_fa = RunAssembly.assembled_fasta,
+                        NR_diamond = NR_diamond,
+                        docker_image_id = docker_image_id
+        }
+
         output{
-               File dummy_output = RunHello.dummy_output
-               File fastp_output = RunHello.fastp_output
+               File validate_input_dummy_output = RunValidateInput.dummy_output
+               File validate_input_fastq = RunValidateInput.validated_output
+               File dummy_output = RunQualityFilter.dummy_output
+               File fastp_output = RunQualityFilter.fastp_output
                File host_dummy_output = RunHostFilter.dummy_output
                File hostfilter_fastq = RunHostFilter.host_filter_fastq
                File hostfilter_sam = RunHostFilter.host_filter_sam
@@ -99,18 +116,38 @@ workflow phylotree{
                File run_nt_alignment_all_seqs = RunNTAlignment.all_sequences_to_align
                File run_nt_minimap_sam = RunNTAlignment.nt_minimap_sam
                File run_nt_centrifuge_output = RunNTAlignment.nt_centrifuge_output
+               File run_nr_alignment_dummy_output = RunNRAlignment.dummy_output
+               File run_nr_alignment_diamond_output = RunNRAlignment.diamond_output
         }
 }
 
-task RunHello{
+task RunValidateInput{
         input{
                File input_fastq
                String docker_image_id
         }
         command <<<
-               echo "hello world" >> output.txt
-               centrifuge --help >> output.txt
-               head "~{input_fastq}" >> output.txt
+               echo "inside RunValidateInput step" >> output.txt
+               # TODO: add some validation, in the meantime just copy to output
+               cp "~{input_fastq}" sample.validated
+        >>>
+
+        output{
+               File dummy_output = "output.txt"
+               File validated_output = "sample.validated"
+        }
+        runtime{
+               docker: docker_image_id
+        }
+}
+
+task RunQualityFilter{
+        input{
+               File input_fastq
+               String docker_image_id
+        }
+        command <<<
+               echo "inside RunQualityFilter step" >> output.txt
                fastp -i "~{input_fastq}" --qualified_quality_phred 9 --length_required 100 --low_complexity_filter --complexity_threshold 30 --dont_eval_duplication -o sample.fastp
         >>>
 
@@ -131,8 +168,10 @@ task RunHostFilter{
                String docker_image_id
         }
         command <<<
-               echo "hello world from inside host filter" >> output.txt
+               echo "inside RunHostFilter step" >> output.txt
+               # run minimap2 against host genome
                minimap2 -ax splice "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam
+               # extract the unmapped reads for downstream processing
                samtools fastq -n -f 4 sample.hostfiltered.sam > sample.hostfiltered.fastq
         >>>
 
@@ -154,8 +193,10 @@ task RunHumanFilter{
                String docker_image_id
         }
         command <<<
-               echo "hello world from inside host filter" >> output.txt
+               echo "inside RunHumanFilter step" >> output.txt
+               # run minimap2 against human genome
                minimap2 -ax splice "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam
+               # extract the unmapped reads for downstream processing
                samtools fastq -n -f 4 sample.humanfiltered.sam > sample.humanfiltered.fastq
         >>>
 
@@ -177,12 +218,8 @@ task RunSubsampling{
                String docker_image_id
         }
         command <<<
-               echo "hello world from inside host filter" >> output.txt
+               echo "inside RunSubsampling step" >> output.txt
                head "~{subsample_depth}" "~{input_fastq}" > sample.subsampled.fastq
-               echo "lines in input:" >> output.txt
-               wc -l "~{input_fastq}" >> output.txt
-               echo "lines in output:" >> output.txt
-               wc -l sample.subsampled.fastq >> output.txt
         >>>
 
         output{
@@ -202,30 +239,29 @@ task RunAssembly{
                String docker_image_id
         }
         command <<<
-               echo "hello world from inside assembly step" >> output.txt
+               echo "inside RunAssembly step" >> output.txt
                flye_setting="--nano-raw"
                if ["~{guppy_basecaller_setting}" -eq "super"]
                then
-                 echo "inside loop" >> output.txt
+                 echo "DEBUG: inside loop for flye_setting is set to --nano-hq" >> output.txt
                  flye_setting="--nano-hq"
                fi
 
-               echo "flye_setting = " >> output.txt
-               echo $flye_setting >> output.txt
-               echo "$flye_setting" >> output.txt
+               echo "DEBUG: flye_setting = $flye_setting" >> output.txt
 
-               flye --help >> output.txt
-
+               # run flye to assembly contigs
                flye --meta $flye_setting "~{input_fastq}" --out-dir temp_flye_out --threads 8 --iterations "~{polishing_iterations}"
 
-               # ERROR HANDLING - ASSEMBLY SOMETIMES FAILS TO COMPLETE AND IS THEN MISSING THE temp_flye_out/assembly.fasta file
+               # ERROR HANDLING - assembly somethings fails (due to low coverage) and is then missing...
+               #                  ... the temp_flye_out/assembly.fasta file
                if [ -f temp_flye_out/assembly.fasta ]
                then
-                 echo "File is found" >> output.txt
+                 echo "DEBUG: assembly.fasta file is found" >> output.txt
                  cat temp_flye_out/assembly.fasta > sample.assembled_reads.fasta
                else
-                 echo "File is not found" >> output.txt
-                 seqtk seq -a "~{input_fastq}" > sample.assembled_reads.fasta #just copy original .fastq to .fasta
+                 echo "DEBUG: assembly.fasta file is not found, copying input to output" >> output.txt
+                 #just copy original .fastq to .fasta
+                 seqtk seq -a "~{input_fastq}" > sample.assembled_reads.fasta 
                fi
 
                zip -r temp_flye_out.zip temp_flye_out
@@ -249,21 +285,15 @@ task RunReadsToContigs{
                String docker_image_id
         }
         command <<<
-               echo "hello world from inside ReadsToContigs" >> output.txt
+               echo "inside RunReadsToContigs step" >> output.txt
 
-               echo "seqs in input reads .fastq" >> output.txt
-               grep "^@" "~{input_fastq}" | wc -l >> output.txt
-
-
+               # use minimap2 to align reads back to contigs
                minimap2 -ax map-ont "~{assembled_reads}" "~{input_fastq}" -o sample.reads_to_contigs.sam
+
+               # extract reads that didn't map to contigs as non-contig reads 
                samtools fastq -n -f 4 sample.reads_to_contigs.sam > sample.non_contigs.fastq
 
-               echo "seqs in assembed reads .fasta" >> output.txt
-               grep ">" "~{assembled_reads}" | wc -l >> output.txt
-               
-               echo "seqs in non_contigs.fastq" >> output.txt
-               grep "^@" sample.non_contigs.fastq | wc -l >> output.txt
-
+               # convert non-contigs.fastq file to .fasta file
                seqtk seq -a sample.non_contigs.fastq > sample.non_contigs.fasta
 
         >>>
@@ -289,70 +319,45 @@ task RunNTAlignment{
                String docker_image_id
         }
         command <<<
-               echo "hello world from inside RunNTAlignment" >> output.txt
+               echo "inside RunNTAlignment step" >> output.txt
 
                echo "seqs in non_contigs.fasta" >> output.txt
                grep ">" "~{non_contig_reads_fa}" | wc -l >> output.txt
 
-               # COMBINE CONTIGS and NON-CONTIG READS INTO file
+               # combine contigs and non-contig reads into a single file
                cat "~{assembled_reads_fa}" "~{non_contig_reads_fa}" > sample.all_sequences_to_align_full.fasta
 
                echo "seqs in all_sequences_to_align_full.fasta" >> output.txt
                grep ">" sample.all_sequences_to_align_full.fasta | wc -l >> output.txt
 
-               # remove duplicates
+               # remove duplicates from full .fasta (important when assembly failed)
                seqkit rmdup -s < sample.all_sequences_to_align_full.fasta > sample.all_sequences_to_align.fasta
 
                echo "seqs in all_sequences_to_align.fasta" >> output.txt
                grep ">" sample.all_sequences_to_align.fasta | wc -l >> output.txt
 
-               echo "alignment test mode is: " >> output.txt
-               echo "~{alignment_test_mode}" >> output.txt
-               alignment_mode="~{alignment_test_mode}"
-               echo $alignment_mode >> output.txt
-               echo $(( $alignment_mode == "all_mm" )) >> output.txt
-
-
-               if $(( $alignment_mode == "all_mm" ))
-               then
-                 echo "HELLOOOOO - test1" >> output.txt
-               fi
-
+               # IF running option #1, map contigs and non-contig reads to NT with minimap
                if [[ $alignment_mode == "all_mm" ]]
                then
-                 echo "HELLOOOOO - test2" >> output.txt
-               fi
-
-               if [[ $alignment_mode == "all_mm" ]]
-               then
-                 echo "HELLOOOOO" >> output.txt
-               elif [[ $alignment_mode == "split_mm_cent" ]]
-               then
-                 echo "HELLLOOOOO2" >> output.txt
-               fi
-
-
-
-               # IF RUNNING OPTION 1, map sample.all_sequences_to_align.fasta to NT with minimap
-               if [[ $alignment_mode == "all_mm" ]]
-               then
-                 echo "inside full minimap alignment" >> output.txt
+                 echo "DEBUG: alignment mode = $alignment_mode; inside full minimap alignment" >> output.txt
+                 
                  minimap2 -ax asm20 -o sample.nt_minimap2_output.sam "~{NT_minimap2}" sample.all_sequences_to_align.fasta
+                 
+                 # create dummy centrifuge output 
                  touch sample.nt_centrifuge_output.txt
-               # IF RUNNING OPTION 2, map assembled_reads_fa to NT with minimap and map non_contig_reads_fa to NT with centrifuge
+
+               # IF running option #2...
+               # map assembled_reads_fa to NT with minimap and map non_contig_reads_fa to NT with centrifuge
                elif [[ $alignment_mode == "split_mm_cent" ]]
                then
-                 echo "inside split alignment of minimap and centrifuge" >> output.txt
+                 echo "DEBUG: alignment mode = $alignment_mode; inside split alignment" >> output.txt
+                 
                  # Run minimap2 on just the contigs
                  minimap2 -ax asm20 -o sample.nt_minimap2_output.sam "~{NT_minimap2}" "~{assembled_reads_fa}"
+                 
                  # Run centrifuge on non-contig reads
-
                  unzip "~{NT_centrifuge}"
                  centrifuge_dir=`basename -s .zip reference/centrifuge-ref.zip`
-                 echo $centrifuge_dir >> output.txt
-                 echo "reference/$centrifuge_dir/p_compressed+h+v" >> output.txt
-                 ls $centrifuge_dir >> output.txt
-
                  centrifuge -q --min-hitlen 50 -x "reference/$centrifuge_dir/p_compressed+h+v" -U "~{non_contig_reads_fa}" -S sample.nt_centrifuge_output.txt
                else
                  echo "ERROR: UNKNOWN VALUE FOR alignment_test_mode" >> output.txt
@@ -370,4 +375,23 @@ task RunNTAlignment{
         }
 }
 
+task RunNRAlignment{
+        input{
+               File assembled_reads_fa
+               File NR_diamond
+               String docker_image_id
+        }
+        command <<<
+               echo "inside RunNRAlignment step" >> output.txt
+               # run DIAMOND
+               diamond blastx --long-reads -d "~{NR_diamond}" -q "~{assembled_reads_fa}" -o sample.nr_diamond_output.txt
+        >>>
 
+        output{
+               File dummy_output = "output.txt"
+               File diamond_output = "sample.nr_diamond_output.txt"
+        }
+        runtime{
+               docker: docker_image_id
+        }
+}

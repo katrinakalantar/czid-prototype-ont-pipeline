@@ -113,3 +113,30 @@ zip -r reference/centrifuge-ref.zip reference/centrifuge-ref
 ```
 miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=data/SRR12458736.fastq minimap_host_db=reference/chr1.fa minimap_human_db=reference/chr1.fa NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent
 ```
+
+**Making DIAMOND database**
+
+DIAMOND / NR alignment requires protein sequences. Downloading the NR database.
+```
+cd reference
+wget https://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz # stopped this short to get just a tiny .fa file (1% of the db)
+mv nr.gz tiny-nr.gz
+
+# continued this command in screen to eventually get the full db [detached from 25807.pts-2.ia-katrina-kalantar-1656703242]
+
+# building the DB
+./tools/diamond makedb --in ./reference/tiny-nr.gz -d ./reference/tiny-nr
+```
+
+Running the wdl pipeline with diamond db parameter
+
+```
+miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=data/SRR12458736.fastq minimap_host_db=reference/chr1.fa minimap_human_db=reference/chr1.fa NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
+```
+
+
+**Adding medaka capability / options**
+
+
+
+
