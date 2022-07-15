@@ -1,6 +1,6 @@
 version 1.0
 
-workflow phylotree{
+workflow ontpipeline{
         input{
                 File input_fastq
                 String library_type = "RNA"
