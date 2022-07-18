@@ -138,5 +138,13 @@ miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=data
 **Adding medaka capability / options**
 
 
+We want to get the medaka option running! It failed to build the db based on docker space issue.
+
+Update the docker location to enable building with medaka - using instructions here: https://github.com/katrinakalantar/vigilant-palm-tree/blob/main/2021_0315/notes_week.md#how-to-update-the-size-of-the-storage-on-the-instance-so-docker-will-run
+
+Try to build docker image with medaka line uncommented.
+
+
+
 
 
