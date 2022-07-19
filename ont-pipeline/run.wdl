@@ -16,6 +16,9 @@ workflow ontpipeline{
                 File minimap_host_db
                 File minimap_human_db
 
+                String run_polishing = "none" #"medaka"
+                String medaka_model = "r10_min_high_g340"
+
                 File NT_minimap2
                 File NT_centrifuge
                 String alignment_test_mode = "all_mm" # all_mm, split_mm_cent 
@@ -77,6 +80,18 @@ workflow ontpipeline{
                         docker_image_id = docker_image_id
         }
 
+        if (run_polishing == "medaka"){
+          call RunPolishing{
+                  input:
+                          input_bam = RunReadsToContigs.reads_to_contigs_bam,
+                          input_bai = RunReadsToContigs.reads_to_contigs_bai,
+                          assembled_reads = RunAssembly.assembled_fasta,
+                          medaka_model = medaka_model,
+                          docker_image_id = docker_image_id
+          }        
+        }
+
+
         call RunNTAlignment{
                 input:
                         non_contig_reads_fa = RunReadsToContigs.non_contigs_fasta,
@@ -109,7 +124,10 @@ workflow ontpipeline{
                File subsampled_fastq = RunSubsampling.subsampled_fastq
                File assembled_fasta = RunAssembly.assembled_fasta
                File assembly_dir = RunAssembly.temp_assembly_dir
+               File? polishing_dummy_output = RunPolishing.dummy_output  # won't be output unless run_polishing == "medaka"
                File reads_to_contigs_dummy_output = RunReadsToContigs.dummy_output
+               File reads_to_contigs_bam = RunReadsToContigs.reads_to_contigs_bam
+               File reads_to_contigs_bai = RunReadsToContigs.reads_to_contigs_bai
                File reads_to_contigs_non_contigs_fastq = RunReadsToContigs.non_contigs_fastq
                File reads_to_contigs_non_contigs_fasta = RunReadsToContigs.non_contigs_fasta
                File run_nt_alignment_dummy_output = RunNTAlignment.dummy_output
@@ -170,7 +188,14 @@ task RunHostFilter{
         command <<<
                echo "inside RunHostFilter step" >> output.txt
                # run minimap2 against host genome
-               minimap2 -ax splice "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam
+               if ["~{library_type}" -eq "RNA"]
+               then
+                 echo "DEBUG: inside library_type == RNA, running minimap2 -ax splice"
+                 minimap2 -ax splice "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam
+               else # assuming DNA
+                 echo "DEBUG: inside library_type == DNA, running minimap2 -ax map-ont"
+                 minimap2 -ax map-ont "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam
+               fi
                # extract the unmapped reads for downstream processing
                samtools fastq -n -f 4 sample.hostfiltered.sam > sample.hostfiltered.fastq
         >>>
@@ -195,7 +220,14 @@ task RunHumanFilter{
         command <<<
                echo "inside RunHumanFilter step" >> output.txt
                # run minimap2 against human genome
-               minimap2 -ax splice "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam
+               if ["~{library_type}" -eq "RNA"]
+               then
+                 echo "DEBUG: inside library_type == RNA, running minimap2 -ax splice"
+                 minimap2 -ax splice "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam
+               else # assuming DNA
+                 echo "DEBUG: inside library_type == DNA, running minimap2 -ax map-ont"
+                 minimap2 -ax map-ont "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam
+               fi
                # extract the unmapped reads for downstream processing
                samtools fastq -n -f 4 sample.humanfiltered.sam > sample.humanfiltered.fastq
         >>>
@@ -286,9 +318,14 @@ task RunReadsToContigs{
         }
         command <<<
                echo "inside RunReadsToContigs step" >> output.txt
+               echo "diff of assembled reads v. input reads:"
+               diff "~{assembled_reads}" "~{input_fastq}" >> output.txt
 
                # use minimap2 to align reads back to contigs
                minimap2 -ax map-ont "~{assembled_reads}" "~{input_fastq}" -o sample.reads_to_contigs.sam
+               samtools view -b sample.reads_to_contigs.sam | samtools sort > sample.reads_to_contigs.bam
+               samtools view -Sh sample.reads_to_contigs.bam | head -10 >> output.txt
+               samtools index sample.reads_to_contigs.bam sample.reads_to_contigs.bam.bai
 
                # extract reads that didn't map to contigs as non-contig reads 
                samtools fastq -n -f 4 sample.reads_to_contigs.sam > sample.non_contigs.fastq
@@ -300,6 +337,8 @@ task RunReadsToContigs{
 
         output{
                File dummy_output = "output.txt"
+               File reads_to_contigs_bam = "sample.reads_to_contigs.bam"
+               File reads_to_contigs_bai = "sample.reads_to_contigs.bam.bai"
                File non_contigs_fastq = "sample.non_contigs.fastq"
                File non_contigs_fasta = "sample.non_contigs.fasta"
         }
@@ -308,6 +347,36 @@ task RunReadsToContigs{
         }
 }
 
+
+task RunPolishing{
+        input{
+               File input_bam
+               File input_bai
+               File assembled_reads
+               String medaka_model
+               String docker_image_id
+        }
+        command <<<
+               # NOTE: this step has not actually complete yet - may be buggy! But downstream steps don't rely on it.
+               # and I will be better able to debug this with a dataset that actually generates contigs!!
+               echo "inside RunPolishing step" >> output.txt
+
+               # TODO - add actual functionality here!
+               medaka -h >> output.txt
+               medaka consensus -h >> output.txt
+               samtools view -Sh "~{input_bam}" | head -10 >> output.txt
+               medaka consensus "~{input_bam}" TEMP_OUTPUT --model "~{medaka_model}" --threads 4 
+
+               # ideally, output the polished contigs here and pass them to NT / NR alignment steps
+        >>>
+
+        output{
+               File dummy_output = "output.txt"
+        }
+        runtime{
+               docker: docker_image_id
+        }
+}
 
 task RunNTAlignment{
         input{

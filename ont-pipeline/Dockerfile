@@ -63,7 +63,7 @@ RUN mv diamond /usr/local/bin
 
 # ARTIC, Medaka and dependencies -- errors due to...
 # Could not install packages due to an EnvironmentError: [Errno 28] No space left on device
-#RUN apt-get install -y python3-cffi python3-h5py python3-intervaltree python3-edlib git
-#RUN pip3 install ont-fast5-api parasail mappy pyspoa protobuf==3.19.* tensorflow==2.7.1 https://github.com/artic-network/fieldbioinformatics/archive/1.2.1.tar.gz
-#RUN pip3 install medaka==1.6.0 --no-deps
-#RUN pip3 install git+https://github.com/rzlim08/PyVCF.git
+RUN apt-get install -y python3-cffi python3-h5py python3-intervaltree python3-edlib git
+RUN pip3 install ont-fast5-api parasail mappy pyspoa protobuf==3.19.* tensorflow==2.7.1 https://github.com/artic-network/fieldbioinformatics/archive/1.2.1.tar.gz
+RUN pip3 install medaka==1.6.0 --no-deps
+RUN pip3 install git+https://github.com/rzlim08/PyVCF.git
