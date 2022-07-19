@@ -37,11 +37,11 @@ minimap2 -x map-ont -d hg38_pantro5_mm-map-ont.mmi hg38_pantro5.fa
 
 Open the raw data from nanopore to get a .fastq file to use:
 ```
-# TBD
+tar -xvf 20220615_ont_czid_fastqs.tar #there are 482 GB remaining space before unzipping the raw data.
 ```
 
 Try to run host removal on a full sample on this instance. Bonus: see how far it gets into assembly!
 
 ```
-miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=data/SRR12458736.fastq minimap_host_db=reference/hg38_phiX_rRNA_mito_ERCC_mm-splice.mmi minimap_human_db=reference/hg38_pantro5_mm-splice.mmi library_type=RNA NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
+miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=../ONT-raw-data/1-idseq-hum.fq.gz minimap_host_db=reference/hg38_phiX_rRNA_mito_ERCC_mm-splice.mmi minimap_human_db=reference/hg38_pantro5_mm-splice.mmi library_type=RNA NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
 ```
