@@ -11,7 +11,7 @@ workflow ontpipeline{
                 #String platform = "minION" # minION, gridION, promethION
                 #String pore = "r9.4.1"
 
-                String subsample_depth = 4000000 # should be 4x the number of reads desired
+                String subsample_depth = 400000 # should be 4x the number of reads desired
 
                 File minimap_host_db
                 File minimap_human_db
@@ -191,10 +191,10 @@ task RunHostFilter{
                if [[ "~{library_type}" == "RNA" ]]
                then
                  echo "DEBUG: inside library_type == RNA, running minimap2 -ax splice" >> output.txt
-                 minimap2 -ax splice "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam -t 15
+                 minimap2 -ax splice "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam -t 63 --split-prefix temp_name
                else # assuming DNA
                  echo "DEBUG: inside library_type == DNA, running minimap2 -ax map-ont" >> output.txt
-                 minimap2 -ax map-ont "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam -t 15
+                 minimap2 -ax map-ont "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam -t 63 --split-prefix temp_name
                fi
                # extract the unmapped reads for downstream processing
                samtools fastq -n -f 4 sample.hostfiltered.sam > sample.hostfiltered.fastq
@@ -223,10 +223,10 @@ task RunHumanFilter{
                if [[ "~{library_type}" == "RNA" ]]
                then
                  echo "DEBUG: inside library_type == RNA, running minimap2 -ax splice" >> output.txt
-                 minimap2 -ax splice "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam -t 15 --split-prefix temp_name
+                 minimap2 -ax splice "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam -t 63 --split-prefix temp_name
                else # assuming DNA
                  echo "DEBUG: inside library_type == DNA, running minimap2 -ax map-ont" >> output.txt
-                 minimap2 -ax map-ont "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam -t 15 --split-prefix temp_name
+                 minimap2 -ax map-ont "~{minimap_human_db}" "~{input_fastq}" -o sample.humanfiltered.sam -t 63 --split-prefix temp_name
                fi
                # extract the unmapped reads for downstream processing
                echo "about to run samtools fastq" >> output.txt
@@ -274,7 +274,7 @@ task RunAssembly{
         command <<<
                echo "inside RunAssembly step" >> output.txt
                flye_setting="--nano-raw"
-               if ["~{guppy_basecaller_setting}" -eq "super"]
+               if [[ "~{guppy_basecaller_setting}" == "super" ]]
                then
                  echo "DEBUG: inside loop for flye_setting is set to --nano-hq" >> output.txt
                  flye_setting="--nano-hq"
@@ -283,7 +283,7 @@ task RunAssembly{
                echo "DEBUG: flye_setting = $flye_setting" >> output.txt
 
                # run flye to assembly contigs
-               flye --meta $flye_setting "~{input_fastq}" --out-dir temp_flye_out --threads 8 --iterations "~{polishing_iterations}"
+               flye --meta $flye_setting "~{input_fastq}" --out-dir temp_flye_out --threads 64 --iterations "~{polishing_iterations}"
 
                # ERROR HANDLING - assembly somethings fails (due to low coverage) and is then missing...
                #                  ... the temp_flye_out/assembly.fasta file
@@ -413,7 +413,7 @@ task RunNTAlignment{
                if [[ $alignment_mode == "all_mm" ]]
                then
                  echo "DEBUG: alignment mode = $alignment_mode; inside full minimap alignment" >> output.txt
-                 minimap2 -ax asm20 -o sample.nt_minimap2_output.sam -t 15 "~{NT_minimap2}" sample.all_sequences_to_align.fasta
+                 minimap2 -ax asm20 -o sample.nt_minimap2_output.sam -t 63 "~{NT_minimap2}" sample.all_sequences_to_align.fasta
                  # create dummy centrifuge output 
                  touch sample.nt_centrifuge_output.txt
                # IF running option #2...
@@ -422,7 +422,7 @@ task RunNTAlignment{
                then
                  echo "DEBUG: alignment mode = $alignment_mode; inside split alignment" >> output.txt
                  # Run minimap2 on just the contigs
-                 minimap2 -ax asm20 -o sample.nt_minimap2_output.sam -t 15 "~{NT_minimap2}" "~{assembled_reads_fa}"                 
+                 minimap2 -ax asm20 -o sample.nt_minimap2_output.sam -t 63 "~{NT_minimap2}" "~{assembled_reads_fa}"                 
                  # Run centrifuge on non-contig reads
                  unzip "~{NT_centrifuge}"
                  centrifuge_dir=`basename -s .zip reference/centrifuge-ref.zip`
