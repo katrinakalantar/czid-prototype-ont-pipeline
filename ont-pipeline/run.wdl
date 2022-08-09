@@ -252,7 +252,11 @@ task RunSubsampling{
         }
         command <<<
                echo "inside RunSubsampling step" >> output.txt
+               echo "seqkit stats for current input" >> output.txt
+               seqkit stats "~{input_fastq}" >> output.txt
                head -"~{subsample_depth}" "~{input_fastq}" > sample.subsampled.fastq
+               echo "seqkit stats for filtered input" >> output.txt
+               seqkit stats sample.subsampled.fastq >> output.txt
         >>>
 
         output{
