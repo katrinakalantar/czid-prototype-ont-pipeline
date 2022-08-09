@@ -166,12 +166,12 @@ task RunQualityFilter{
         }
         command <<<
                echo "inside RunQualityFilter step" >> output.txt
-               fastp -i "~{input_fastq}" --qualified_quality_phred 9 --length_required 100 --low_complexity_filter --complexity_threshold 30 --dont_eval_duplication -o sample.fastp
+               fastp -i "~{input_fastq}" --qualified_quality_phred 9 --length_required 100 --low_complexity_filter --complexity_threshold 30 --dont_eval_duplication -o sample.fastp.fastq.gz
         >>>
 
         output{
                File dummy_output = "output.txt"
-               File fastp_output = "sample.fastp"
+               File fastp_output = "sample.fastp.fastq.gz"
         }
         runtime{
                docker: docker_image_id
@@ -198,12 +198,14 @@ task RunHostFilter{
                fi
                # extract the unmapped reads for downstream processing
                samtools fastq -n -f 4 sample.hostfiltered.sam > sample.hostfiltered.fastq
+               gzip sample.hostfiltered.fastq
+               samtools view -S -b sample.hostfiltered.sam > sample.hostfiltered.bam
         >>>
 
         output{
                File dummy_output = "output.txt"
-               File host_filter_sam = "sample.hostfiltered.sam"
-               File host_filter_fastq = "sample.hostfiltered.fastq"
+               File host_filter_sam = "sample.hostfiltered.bam"
+               File host_filter_fastq = "sample.hostfiltered.fastq.gz"
         }
         runtime{
                docker: docker_image_id
@@ -231,12 +233,14 @@ task RunHumanFilter{
                # extract the unmapped reads for downstream processing
                echo "about to run samtools fastq" >> output.txt
                samtools fastq -n -f 4 sample.humanfiltered.sam > sample.humanfiltered.fastq
+               gzip sample.humanfiltered.fastq
+               samtools view -S -b sample.humanfiltered.sam > sample.humanfiltered.bam
         >>>
 
         output{
                File dummy_output = "output.txt"
-               File human_filter_sam = "sample.humanfiltered.sam"
-               File human_filter_fastq = "sample.humanfiltered.fastq"
+               File human_filter_sam = "sample.humanfiltered.bam"
+               File human_filter_fastq = "sample.humanfiltered.fastq.gz"
         }
         runtime{
                docker: docker_image_id
