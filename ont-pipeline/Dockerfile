@@ -1,4 +1,4 @@
-FROM ubuntu:21.04
+FROM ubuntu:20.04
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL maintainer="IDseq Team idseq-tech@chanzuckerberg.com"
@@ -23,7 +23,6 @@ RUN apt-get -qq update && apt-get -qq -y install curl locales zip git make build
   minimap2 \
   samtools \
   seqtk \
-  seqkit \
   python3-dev \
   python3-pip \
   python3-setuptools \
@@ -37,6 +36,10 @@ RUN wget -O fastp http://opengene.org/fastp/fastp.${fastp_version} && \
 #RUN git clone https://github.com/fenderglass/Flye && \
 #    cd Flye && \
 #    python setup.py install
+
+RUN wget https://github.com/shenwei356/seqkit/releases/download/v2.3.0/seqkit_linux_386.tar.gz && \
+  tar -xvf seqkit_linux_386.tar.gz && \
+  rm seqkit_linux_386.tar.gz
 
 RUN wget https://github.com/fenderglass/Flye/archive/${FLYE_VER}.tar.gz && \
   tar -xvf ${FLYE_VER}.tar.gz && \
@@ -63,7 +66,7 @@ RUN mv diamond /usr/local/bin
 
 # ARTIC, Medaka and dependencies -- errors due to...
 # Could not install packages due to an EnvironmentError: [Errno 28] No space left on device
-RUN apt-get install -y python3-cffi python3-h5py python3-intervaltree python3-edlib git
-RUN pip3 install ont-fast5-api parasail mappy pyspoa protobuf==3.19.* tensorflow==2.7.1 https://github.com/artic-network/fieldbioinformatics/archive/1.2.1.tar.gz
-RUN pip3 install medaka==1.6.0 --no-deps
-RUN pip3 install git+https://github.com/rzlim08/PyVCF.git
+#RUN apt-get install -y python3-cffi python3-h5py python3-intervaltree python3-edlib git
+#RUN pip3 install ont-fast5-api parasail mappy pyspoa protobuf==3.19.* tensorflow==2.7.1 https://github.com/artic-network/fieldbioinformatics/archive/1.2.1.tar.gz
+#RUN pip3 install medaka==1.6.0 --no-deps
+#RUN pip3 install git+https://github.com/rzlim08/PyVCF.git

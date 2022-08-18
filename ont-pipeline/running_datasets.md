@@ -100,22 +100,78 @@ NOTE: results for 100k read subset of 6-idseq-hum is in: 20220722_051453_ontpipe
 
 
 
-TRYING A MOSUITO SAMPLE EVEN THOUGH THERE WAS A SEG FAULT IN GENERATING THOSE HOST GENOMES -- 
+TRYING A MOSQUITO SAMPLE EVEN THOUGH THERE WAS A SEG FAULT IN GENERATING THOSE HOST GENOMES -- 
 aws s3 cp s3://idseq-prod-samples-us-west-2/comp-bio-workspace/ont-data/17-idseq-mosq.fq.gz ../ONT-raw-data/
-
 ```
 miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=../ONT-raw-data/17-idseq-mosq.fq.gz minimap_host_db=reference/mosquito_genomes_20181207_mm-splice.mmi minimap_human_db=reference/hg38_pantro5_mm-splice.mmi library_type=RNA NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
 ```
 WAS RUNNING ALIGNMENT BUT HAD ERROR FOR --split-prefix, so I stopped it. The issue right now is space on the instance. 
 
-
 I may need to have a function to copy files into an output directory so that I can remove the unnecessary files (?) 
-
 
 I may need to zip the results from the pipeline runs and move them elsewhere to free up space for running new pipelines!! 
 i.e. s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
 
+```
+# NOTE: this dataset seems to be corrupted on s3 so I need to re-run it.
 tar -czvf 20220722_051453_ontpipeline.tar.gz 20220722_051453_ontpipeline
 aws s3 cp 20220722_051453_ontpipeline.tar.gz s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
 rm 20220722_051453_ontpipeline.tar.gz
 rm -rf 20220722_051453_ontpipeline
+
+tar -czvf 20220722_022439_ontpipeline.tar.gz 20220722_022439_ontpipeline 
+aws s3 cp 20220722_022439_ontpipeline.tar.gz s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
+rm 20220722_022439_ontpipeline.tar.gz
+rm -rf 20220722_022439_ontpipeline
+
+tar -czvf 20220721_234114_ontpipeline.tar.gz 20220721_234114_ontpipeline
+aws s3 cp 20220721_234114_ontpipeline.tar.gz s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
+rm 20220721_234114_ontpipeline.tar.gz
+rm -rf 20220721_234114_ontpipeline
+
+aws s3 cp alignment-intermediates s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
+
+tar -czvf 20220721_211122_ontpipeline.tar.gz 20220721_211122_ontpipeline
+aws s3 cp 20220721_211122_ontpipeline.tar.gz s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
+rm 20220721_211122_ontpipeline.tar.gz
+rm -rf 20220721_211122_ontpipeline
+
+tar -czvf 20220721_181647_ontpipeline.tar.gz 20220721_181647_ontpipeline
+aws s3 cp 20220721_181647_ontpipeline.tar.gz s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
+rm 20220721_181647_ontpipeline.tar.gz
+rm -rf 20220721_181647_ontpipeline
+
+#still need to run this... # RUNNING TODAY 
+tar -czvf 20220720_232327_ontpipeline.tar.gz 20220720_232327_ontpipeline
+aws s3 cp 20220720_232327_ontpipeline.tar.gz s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
+rm 20220720_232327_ontpipeline.tar.gz
+rm -rf 20220720_232327_ontpipeline
+```
+
+**Re-running the 100k subsample of 6-idseq-hum given corruption in saved .tar file**
+[On THursday, August 18]
+
+Try to re-run 100k subsample of 6-idseq-hum
+```
+miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=../ONT-raw-data/6-idseq-hum.fq.gz minimap_host_db=reference/hg38_phiX_rRNA_mito_ERCC_mm-splice.mmi minimap_human_db=reference/hg38_pantro5_mm-splice.mmi library_type=RNA NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
+```
+NOTE: results for 100k read subset of 6-idseq-hum is in: XXXXX
+
+
+
+
+**Restarting work on this, aiming to generate alignment intermediates for the mosquito samples**
+
+Now that I've cleared space off of the instance by moving results to the s3 location, I'm going to try to run a mosquito sample. **NOTE: stopped this, eng will create the mosquito indices and then I will run using them**
+
+m5.24xlarge - 64 vCPU, so I'll update --threads to 64 in assembly step, $4.6/hour
+```
+./ec2ia launch --iam-role idseq-comp-bio --instance-type m5.24xlarge -- --availability-zone us-west-2c
+
+# MOSQUITO HOST - 
+aws s3 cp s3://idseq-public-references/host_filter/mosquitos/reference_fastas/mosquito_genomes_20181207.fa.gz .
+minimap2 -x splice -d mosquito_genomes_20181207_mm-splice.mmi mosquito_genomes_20181207.fa.gz  # ERROR - segmentation fault
+minimap2 -x map-ont -d mosquito_genomes_20181207_mm-map-ont.mmi mosquito_genomes_20181207.fa.gz  # ERROR - segmentation fault
+
+miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=../ONT-raw-data/17-idseq-mosq.fq.gz minimap_host_db=reference/mosquito_genomes_20181207_mm-splice.mmi minimap_human_db=reference/hg38_pantro5_mm-splice.mmi library_type=RNA NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
+```
