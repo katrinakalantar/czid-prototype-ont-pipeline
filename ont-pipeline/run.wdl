@@ -166,12 +166,12 @@ task RunQualityFilter{
         }
         command <<<
                echo "inside RunQualityFilter step" >> output.txt
-               fastp -i "~{input_fastq}" --qualified_quality_phred 9 --length_required 100 --low_complexity_filter --complexity_threshold 30 --dont_eval_duplication -o sample.fastp.fastq.gz
+               fastp -i "~{input_fastq}" --qualified_quality_phred 9 --length_required 100 --low_complexity_filter --complexity_threshold 30 --dont_eval_duplication -o sample.fastp
         >>>
 
         output{
                File dummy_output = "output.txt"
-               File fastp_output = "sample.fastp.fastq.gz"
+               File fastp_output = "sample.fastp"
         }
         runtime{
                docker: docker_image_id
@@ -195,17 +195,22 @@ task RunHostFilter{
                else # assuming DNA
                  echo "DEBUG: inside library_type == DNA, running minimap2 -ax map-ont" >> output.txt
                  minimap2 -ax map-ont "~{minimap_host_db}" "~{input_fastq}" -o sample.hostfiltered.sam -t 63 --split-prefix temp_name
+                 echo "DEBUG: finished inside library_type == RNA" >> output.txt
                fi
                # extract the unmapped reads for downstream processing
+               echo "DEBUG: outside of loop" >> output.txt
                samtools fastq -n -f 4 sample.hostfiltered.sam > sample.hostfiltered.fastq
-               gzip sample.hostfiltered.fastq
+               echo "DEBUG: finished samtools fastq" >> output.txt
+               #gzip sample.hostfiltered.fastq
+               #echo "DEBUG: finished gzipping fastq" >> output.txt
                samtools view -S -b sample.hostfiltered.sam > sample.hostfiltered.bam
+               echo "DEBUG: finished samtools view" >> output.txt
         >>>
 
         output{
                File dummy_output = "output.txt"
                File host_filter_sam = "sample.hostfiltered.bam"
-               File host_filter_fastq = "sample.hostfiltered.fastq.gz"
+               File host_filter_fastq = "sample.hostfiltered.fastq"
         }
         runtime{
                docker: docker_image_id
@@ -233,14 +238,14 @@ task RunHumanFilter{
                # extract the unmapped reads for downstream processing
                echo "about to run samtools fastq" >> output.txt
                samtools fastq -n -f 4 sample.humanfiltered.sam > sample.humanfiltered.fastq
-               gzip sample.humanfiltered.fastq
+               #gzip sample.humanfiltered.fastq
                samtools view -S -b sample.humanfiltered.sam > sample.humanfiltered.bam
         >>>
 
         output{
                File dummy_output = "output.txt"
                File human_filter_sam = "sample.humanfiltered.bam"
-               File human_filter_fastq = "sample.humanfiltered.fastq.gz"
+               File human_filter_fastq = "sample.humanfiltered.fastq"
         }
         runtime{
                docker: docker_image_id

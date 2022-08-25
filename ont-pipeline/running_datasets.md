@@ -149,13 +149,44 @@ rm -rf 20220720_232327_ontpipeline
 ```
 
 **Re-running the 100k subsample of 6-idseq-hum given corruption in saved .tar file**
-[On THursday, August 18]
+[On Thursday, August 18]
 
 Try to re-run 100k subsample of 6-idseq-hum
 ```
+screen
 miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=../ONT-raw-data/6-idseq-hum.fq.gz minimap_host_db=reference/hg38_phiX_rRNA_mito_ERCC_mm-splice.mmi minimap_human_db=reference/hg38_pantro5_mm-splice.mmi library_type=RNA NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
 ```
-NOTE: results for 100k read subset of 6-idseq-hum is in: XXXXX
+NOTE: results for 100k read subset of 6-idseq-hum is in: 20220822_152907_ontpipeline (currently; pending if successful)
+
+**TODO - tar .gz and save this file**
+```
+tar -czvf 20220822_152907_ontpipeline.tar.gz 20220822_152907_ontpipeline
+aws s3 cp 20220822_152907_ontpipeline.tar.gz s3://idseq-prod-samples-us-west-2/comp-bio-workspace/
+rm 20220822_152907_ontpipeline.tar.gz
+rm -rf 20220822_152907_ontpipeline
+```
+
+
+**Re-running 2-idseq-hum with subsampling = 1 million given that it has odd total counts**
+```
+screen
+miniwdl run --verbose ont-pipeline/run.wdl docker_image_id=ontp input_fastq=../ONT-raw-data/2-idseq-hum.fq.gz minimap_host_db=reference/hg38_phiX_rRNA_mito_ERCC_mm-splice.mmi minimap_human_db=reference/hg38_pantro5_mm-splice.mmi library_type=RNA subsample_depth=4000000 NT_minimap2=reference/mm-asm20_bacterial_viral_dummy_db.mmi NT_centrifuge=reference/centrifuge-ref.zip alignment_test_mode=split_mm_cent NR_diamond=reference/tiny-nr.dmnd
+
+# then I will need to copy the contigs and non-contig reads to s3
+
+# then I will need to pull those down and create contigs + non-contig reads
+
+# then I will need to run the sfn_infra on it
+
+# then I will need to tally the results
+
+
+```
+
+
+
+
+
 
 
 

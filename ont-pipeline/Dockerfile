@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:21.10
 ARG DEBIAN_FRONTEND=noninteractive
 
 LABEL maintainer="IDseq Team idseq-tech@chanzuckerberg.com"
@@ -23,6 +23,7 @@ RUN apt-get -qq update && apt-get -qq -y install curl locales zip git make build
   minimap2 \
   samtools \
   seqtk \
+  seqkit \
   python3-dev \
   python3-pip \
   python3-setuptools \
@@ -39,7 +40,9 @@ RUN wget -O fastp http://opengene.org/fastp/fastp.${fastp_version} && \
 
 RUN wget https://github.com/shenwei356/seqkit/releases/download/v2.3.0/seqkit_linux_386.tar.gz && \
   tar -xvf seqkit_linux_386.tar.gz && \
-  rm seqkit_linux_386.tar.gz
+  rm seqkit_linux_386.tar.gz && \
+  cp seqkit /usr/local/bin
+ENV PATH=$PATH:$(pwd)
 
 RUN wget https://github.com/fenderglass/Flye/archive/${FLYE_VER}.tar.gz && \
   tar -xvf ${FLYE_VER}.tar.gz && \
