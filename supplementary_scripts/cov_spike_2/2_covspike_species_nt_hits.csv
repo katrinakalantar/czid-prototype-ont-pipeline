@@ -1,0 +1,12 @@
+,taxid,level,total_sequence_length,total_alignment_length,scientific_name,total_bp,proportion_of_subsampled,total_bp_adjusted,proportion_total_bp_adjusted
+0,694003,species,193510240,32574,Betacoronavirus 1,193510240,0.946939439,193510240,0.01789724
+10,129951,species,453804,4173,Human mastadenovirus C,453804,0.002220683,453804,4.20E-05
+3,40214,species,0,14212,Acinetobacter johnsonii,14212,6.95E-05,14212,1.31E-06
+5,943830,species,0,5225,Tardiphaga robiniae,5225,2.56E-05,5225,4.83E-07
+6,34062,species,0,5212,Moraxella osloensis,5212,2.55E-05,5212,4.82E-07
+8,1325100,species,0,4276,Bradyrhizobium sp. CCBAU 51753,4276,2.09E-05,4276,3.95E-07
+13,562,species,0,3750,Escherichia coli,3750,1.84E-05,3750,3.47E-07
+14,13689,species,0,3507,Sphingomonas paucimobilis,3507,1.72E-05,3507,3.24E-07
+17,2709380,species,0,2028,Starkeya sp. ORNL1,2028,9.92E-06,2028,1.88E-07
+18,2592816,species,0,945,Tardiphaga sp. vice352,945,4.62E-06,945,8.74E-08
+20,1869227,species,0,805,bacterium,805,3.94E-06,805,7.45E-08
